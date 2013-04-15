@@ -319,9 +319,9 @@ class EntityManager
       $repository = $this->getEntityRepository($entityName);
       $entity = $repository->findById($id);
 
-      if ($entity instanceof $repository->getEntityClassName()) {
+      //if ($entity instanceof $repository->getEntityClassName()) {
         return $entity;
-      }
+      //}
     }
     return null;
   }
