@@ -57,6 +57,13 @@ use Orm\Database;
    * @var Orm\Database\Adapter
    */
   protected $_dbAdapter = null;
+  
+  /**
+   * $_names
+   *
+   * @var array All entity names that the driver holds metadata for
+   */
+  protected $_names = array();
 
   /**
    * _construct
@@ -255,7 +262,8 @@ use Orm\Database;
     if (! isset($this->_entityMetadata[$entityName])) {
       $tableName = $this->getFieldTableName();
       $query = $this->createQuery($tableName)->where('name = ?', $entityName);
-      $this->_entityMetadata[$entityName] = $this->loadMetadata($query);
+      $result = $this->loadMetadata($query);
+      $this->_entityMetadata[$entityName] = $result[0];
     }
     return $this->_entityMetadata[$entityName];
   }
@@ -284,7 +292,7 @@ use Orm\Database;
    * @param  [type] $tableName [description]
    * @return [type]            [description]
    */
-  protected function loadAssociationMetadata()
+  protected function loadAssociationMetadata($entityName)
   {
     if (! isset($this->_associationMetadata[$entityName])) {
       $tableName = $this->getAssociationTableName();
@@ -292,6 +300,133 @@ use Orm\Database;
       $this->_associationMetadata[$entityName] = $this->loadMetadata($query);
     }
     return $this->_associationMetadata[$entityName];
+  }
+
+  /**
+   * getAllEntityNames
+   *
+   * Return all the entity names that the driver holds metadata for
+   * 
+   * @return [type] [description]
+   */
+  public function getAllEntityNames()
+  {
+    if (empty($this->_names)) {
+      $this->_names = $this->loadEntityNames();
+    }
+    return $this->_names;
+  }
+
+  /**
+   * getEntityMetadata
+   *
+   * Return the entity metadata for a given entity name
+   * 
+   * @param  [type] $entityName [description]
+   * @return [type]             [description]
+   */
+  public function getEntityMetadata($entityName)
+  {
+    if (! isset($this->_entityMetadata[$entityName])) {
+      $this->_entityMetadata[$entityName] = $this->loadEntityMetadata($entityName);
+    }
+    return $this->_entityMetadata[$entityName];
+  }
+
+  /**
+   * getFieldMetadata
+   *
+   *  Return the field metadata for a given entity name
+   * 
+   * @param  [type] $entityName [description]
+   * @return [type]             [description]
+   */
+  public function getFieldMetadata($entityName)
+  {
+    if(! isset($this->_fieldMetadata[$entityName])) {
+      $this->_fieldMetadata[$entityName] = $this->loadFieldMetadata($entityName);
+    }
+    return $this->_fieldMetadata[$entityName];
+  }
+
+  /**
+   * getAssociationMetadata
+   *
+   * Return the association metadata for a given entity name
+   * 
+   * @param  [type] $entityName [description]
+   * @return [type]             [description]
+   */
+  public function getAssociationMetadata($entityName)
+  {
+    if (! isset($this->_associationMetadata[$entityName])) {
+      $this->_associationMetadata[$entityName] = $this->loadAssociationMetadata($entityName);
+    }
+    return $this->_associationMetadata[$entityName];
+  }
+
+  /**
+   * populate
+   *
+   * Populate the entity metadata
+   * 
+   * @param  Metadata\Factory $factory    [description]
+   * @param  [type]           $entityName [description]
+   * @return [type]                       [description]
+   */
+  public function populate(Metadata\Factory $factory, $entityName)
+  {
+    $entityData = $this->getEntityMetadata($entityName);
+    $className = $entityData['class_name'];
+    $metadata = $factory->newMetadata($className);
+
+    if (! $metadata instanceof Metadata\EntityMetadata) {
+      throw new \Exception('Could not create metadata for entity ' . $entityName);
+    }
+    
+    /** Set the basic entity metadata **/
+    $metadata->setEntityName($entityName);
+    $metadata->setClassName($className);
+    $metadata->setTableName($entityData['table_name']);
+    $metadata->setRepositoryClassName($entityData['repository_class_name']);
+
+    /** Field mappings **/
+    $fieldMappings = $this->getFieldMetadata($entityName);
+    foreach($fieldMappings as $mapping) {
+      $fieldMapping = array(
+        'fieldName' => $mapping['field_name'],
+        'columnName' => $mapping['column_name'],
+        'identity' => $mapping['is_identity'],
+        'dataType' => $mapping['data_type'],
+        'dataLength' => $mapping['data_length'],
+        'defaultValue' => $mapping['default_value']
+      );
+      $metadata->addFieldMapping($fieldMapping);
+    }
+
+    /** Association mappings **/
+    $assocMappings = $this->getAssociationMetadata($entityName);
+    foreach($assocMappings as $mapping) {
+      $assocMapping = array(
+        'type' => $mapping['association_type'],
+        'fieldName' => $mapping['field_name'],
+        'identity' => $mapping['identity'],
+        'sourceEntityName' => $mapping['entity_name'],
+        'targetEntityName' => $mapping['target_entity_name'],
+        'mappedByColumn' => $mapping['mapped_by_column_name'],
+        'inversedByColumn' => $mapping['inversed_by_column_name'],
+        'loadType' => $mapping['load_type'],
+        'joinColumns' => explode(',', $mapping['join_column_names']),
+        'referencedColumns' => explode(',', $mapping['referenced_column_names']),
+        'joinTable' => array(
+          'name' => $mapping['join_table_name'],
+          'joinColumns' => array(),
+          'inverseJoinColumns' => array()
+        )
+      );
+      $metadata->addAssociationMapping($assocMapping);
+    }
+    return $metadata;
   }
 
 

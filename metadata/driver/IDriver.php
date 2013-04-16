@@ -2,6 +2,8 @@
 
 namespace Orm\Metadata\Driver;
 
+use Orm\Metadata;
+
 interface IDriver
 {
   public function getAllEntityNames();
@@ -11,4 +13,7 @@ interface IDriver
   public function getFieldMetadata($entityName);
 
   public function getAssociationMetadata($entityName);
+
+  public function populate(Metadata\Factory $factory, $entityName);
+
 }

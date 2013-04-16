@@ -116,13 +116,14 @@ abstract class EntityMetadata
    *
    * @return EntityMetadata
    */
-  public function __construct($className, array $metadata)
+  public function __construct($className, array $metadata = array())
   {
     $this->_className = $className;
     $this->_reflectionClass = new \ReflectionClass($this->_className);
 
-    $this->setMetadata($metadata);
-
+    if (! empty($metadata)) {
+      $this->setMetadata($metadata);
+    }
     return $this;
   }
 
@@ -146,11 +147,11 @@ abstract class EntityMetadata
         case 'tablename':
           $this->setTableName($value);
         break;
-        case 'fieldMappings':
+        case 'fieldmappings':
           if (! is_array($value)) throw new \InvalidArgumentException('Entity metadata for option "' . $option .'" must be an array.');
           $this->setFieldMappings($value);
         break;
-        case 'associationMappings':
+        case 'associationmappings':
           if (is_array($value)) throw new \InvalidArgumentException('Entity metadata for option "' . $option .'" must be an array.');
           $this->setAssociationMappings($value);
         break;
@@ -325,7 +326,7 @@ abstract class EntityMetadata
   }
 
   /**
-   * setFieldMapping
+   * addFieldMapping
    *
    * Add a new field mapping to the entity metadata. Once added the
    * metadata will be validated and formatted to the correct
@@ -334,7 +335,7 @@ abstract class EntityMetadata
    * @param string $fieldName The field name to hold the mapping
    * @param array  $mapping  The raw mapping metadata for this field
    */
-  public function setFieldMapping($fieldName, array $mapping)
+  public function addFieldMapping($fieldName, array $mapping)
   {
     if (isset($this->_fieldMappings[$fieldName]) || isset($this->_associationMappings[$fieldName])) {
       throw new InvalidArgumentException(
@@ -399,6 +400,37 @@ abstract class EntityMetadata
   public function hasAssociation($fieldName)
   {
     return (isset($this->_associationMappings[$fieldName]) ? true : false);
+  }
+
+  /**
+   * isSingleIdentityAssociation
+   * 
+   * @param  [type]  $fieldName [description]
+   * @return boolean            [description]
+   */
+  public function isSingleIdentityAssociation($fieldName)
+  {
+    if (isset($this->_associationMappings[$fieldName])) {
+      return ($this->_associationMappings[$fieldName]['type'] == self::ASSOC_ONE_TO_ONE) ? true : false;
+    }
+    return false;
+  }
+
+  /**
+   * isCompositeIdentityAssociation
+   *
+   * Check if the provided field represents a multiple identity entity 
+   * association
+   * 
+   * @param  [type]  $fieldName [description]
+   * @return boolean            [description]
+   */
+  public function isCompositeIdentityAssociation($fieldName)
+  {
+    if (isset($this->_associationMappings[$fieldName])) {
+      return ($this->_associationMappings[$fieldName]['type'] !== self::ASSOC_ONE_TO_ONE) ? true : false;
+    }
+    return false;
   }
 
  /**
@@ -793,6 +825,21 @@ abstract class EntityMetadata
   {
     return $this->getReflectionClass()->newInstance();
   }
+
+  /**
+   * setFieldValue
+   *
+   * Set the value of the provided entity
+   * 
+   * @param [type] $entity     [description]
+   * @param [type] $fieldName  [description]
+   * @param [type] $fieldValue [description]
+   */
+  public function setFieldValue(Entity\IEntity $entity, $fieldName, $fieldValue)
+  {
+    $this->getReflectionField($fieldName)->setValue($entity, $fieldValue);
+  }
+
 
 
 } 

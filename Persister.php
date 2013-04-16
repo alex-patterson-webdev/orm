@@ -39,8 +39,8 @@ class Persister
   public function __construct(Metadata\EntityMetadata $metadata, EntityManager $em)
   {
     $this->_entityManager = $em;
-    $this->_dbApdater       = $em->getDatabaseAdapter();
     $this->_metadata        = $metadata;
+    $this->_dbApdater       = $em->getDatabaseAdapter();
     $this->_entityName     = $metadata->getEntityName(); 
 
     return $this;
@@ -86,7 +86,7 @@ class Persister
     $result = $this->execute($sql, $data['params'], $data['types']);
 
     if (! empty($result)) {
-      return $this->populateEntity($this->createEntity(), $result);
+      return $this->populateEntity($this->createEntity(), $this->processQueryRow($result[0]));
     }
     return null;
   }
@@ -110,7 +110,7 @@ class Persister
     $results = array();
     if (! empty($result)) {
       foreach ($result as $row) {
-        $results[] = $this->populateEntity($this->createEntity(), $row);
+        $results[] = $this->populateEntity($this->createEntity(), $this->processQueryRow($row));
       }
     }
     return $results;
@@ -162,6 +162,46 @@ class Persister
     return $stmt->fetchAll();
   }
 
+
+  /**
+   * processQueryResultSet
+   *
+   * Reformats the query result set from alias column names
+   * to table column names
+   * 
+   * @param  array  $results [description]
+   * @return array $formatted results array
+   */
+  protected function processQueryResultSet(array $resultset)
+  {
+    $data = array();
+    if (! empty($resultset)) {
+      foreach ($resultset as $row) {
+        $data[] = $this->processQueryRow($row);
+      }
+    }
+    return $data;
+  }
+
+  /**
+   * processQueryRow
+   *
+   *  Format a single query result row. Keys are table column
+   *  names and values
+   * 
+   * @param  array $result
+   * @return array The formatted array result
+   */
+  protected function processQueryRow(array $row)
+  {
+    $data = array();
+    foreach ($row as $columnName => $value) {
+      if (isset($this->_columnNames[$columnName])) {
+        $data[$this->_columnNames[$columnName]] = $value;
+      }
+    }
+    return $data;    
+  }
 
   /**
    * getSelectSql
@@ -362,6 +402,91 @@ class Persister
   }
 
   /**
+   * loadOneToOneEntity
+   *
+   * Load one entity instance
+   * 
+   * @param  array          $assoc  [description]
+   * @param  Entity\IEntity $source [description]
+   * @param  [type]         $target [description]
+   * @param  array          $id     [description]
+   * @return [type]                 [description]
+   */
+  protected function loadOneToOneEntity(array $assoc, Entity\IEntity $source, Entity\IEntity$target = null, array $id = array())
+  {
+    $metadata = array();
+
+    $metadata['target'] = $this->_entityManager->getEntityMetadata($assoc['targetEntityName']);
+
+    if ($assoc['isOwningSide']) {
+      if (strlen($assoc['inversedBy']) && ! $metadata['target']->isCompositeIdentityAssociation($mapping['inversedBy'])) {
+        $target = $this->findById($id, $assoc);
+        if (is_object($target)) {
+          $metadata['target']->getReflectionField($assoc['inversedBy']).setValue($target, $source);
+        }
+      } 
+    } else {
+      /** Inverse side of association **/
+      $metadata['source'] = $this->_entityManager->getEntityMetadata($assoc['sourceEntityName']);
+      $owningAssoc = $metadata['target']->getAssociationMapping($assoc['mappedByColumn']);
+
+      foreach ($owningAssoc as $sourceKeyColumn => $targetKeyColumn) {
+        if ($metadata['source']->hasField($sourceKeyColumn)) {
+          $identifier = array();
+          $fieldName = $metadata['source']->getField($sourceKeyColumn);
+          $identifier[$targetKeyColumn] = $metadata['source']->getReflectionField($fieldName)->getValue($source);
+        } else {
+          throw \InvalidArgumentException('Bad mapping, relationship field must declare a mapped field');
+        }
+      }
+      $target = $this->loadOne($identifier, $assoc);
+      $metadata['target']->setFieldValue($target, $assoc['mappedByColumn'], $source);
+    }
+
+    return $target;
+  }
+
+  /**
+   * loadOneToManyCollection
+   *
+   *  Load a one to many collection of entity instances
+   * 
+   * @param  array          $assoc      [description]
+   * @param  Entity\IEntity $source     [description]
+   * @param  ICollection    $collection [description]
+   * @return [type]                     [description]
+   */
+  protected function loadOneToManyCollection(array $association, Entity\IEntity $source, ICollection $collection)
+  {
+    $assoc = array();
+    $metadata = array();
+
+    $assoc['source'] = $association;
+    $assoc['owner']  = $this->_metadata->getAssociationMapping($assoc['source']['mappedBy']);
+    $metadata['source'] = $this->_entityManager->getEntityMetadata($assoc['source']['sourceEntityName']);
+    $tableAlias = $this->getTableAlias($this->_metadata->getClassName());
+
+    $criteria = array();
+    foreach($assoc['owner']['targetToSourceKeyColumns'] as $targetKeyColumn => $sourceKeyColumn) {
+      $sourceFieldName = $metadata['source']->getField($sourceKeyColumn);
+      $targetColumnName = $tableAlias . '.' . $targetKeyColumn;
+      $criteria[$targetColumnName] = $metadata['source']->getReflectionField($sourceFieldName)->getValue($source);
+    }
+    $sql = $this->getSelectSql($criteria, $assoc);
+    $data = $this->completeCriteria($criteria);
+    $result = $this->executeQuery($sql, $data['params']);
+
+    if (! empty($result)) {
+      foreach($result as $row) {
+        $entity = $this->populateEntity($this->_createEntity(), $row);
+        $collection->add($entity);
+      }
+    }
+
+    return $collection;
+  }
+
+  /**
    * loadManyToManyCollection
    *
    *  Load a many to many collection 
@@ -457,33 +582,10 @@ class Persister
     if (! empty($results)) {
       $collection->setLoaded(true);
       for ($x = 0; $x < count($results); $x++) {
-        $target = $this->createEntity()
+        $target = $this->populateEntity($this->createEntity(), $results[$x]);
       }
     }
     return $collection;
-
-
-      var sql = getSelectSql(criteria, mapping);
-      var data = completeParameters(criteria);
-      var results = executeQuery(sql, data[1], data[2]);
-
-      if (isQuery(results) && results.recordCount) {
-        /** Set loaded state, avoids call to set() causing an infinate load() loop **/
-        collection.setLoaded(true);
-        for (var x = 1; x <= results.recordCount; x++) {
-          var target = createEntity(results, x);
-          arguments.collection.set(x, target);
-        }
-      }
-
-    </cfscript>
-  </cffunction>
-
-
-
-
-
-
-
+  }
 
 }
