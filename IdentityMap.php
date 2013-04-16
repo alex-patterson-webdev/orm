@@ -52,13 +52,15 @@ class IdentityMap
    * @param string $entityName The entity name
    * @param array  $id  The entity identity
    */
-  public function addToIndentityMap($entityName, array $id)
+  public function addToIndentityMap(Entity\IEntity $entity, array $id)
   {
     $key = $this->getIdentityMapKey($id);
+    $entityName = $entity->getEntityName();
+    
     if (! isset($this->_map[$entityName])) {
       $this->_map[$entityName] = array();
     }
-    $this->_map[$entityName][$key] = $id;
+    $this->_map[$entityName][$key] = $entity;
   }
 
   /**

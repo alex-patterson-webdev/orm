@@ -271,9 +271,9 @@ class EntityManager
    * 
    * @param Orm\Entity\Abstract $entity The identity to add
    */
-  public function addToIdentityMap(Orm\Entity\IEntity $entity)
+  public function addToIdentityMap(Orm\Entity\IEntity $entity, array $id)
   {
-    $this->getIdentityMap()->addToIdentityMap($entity);
+    $this->getIdentityMap()->addToIdentityMap($entity, $id);
   }
 
   /**
@@ -286,19 +286,6 @@ class EntityManager
   public function removeFromIdentityMap($entityName, array $id)
   {
     return $this->getIdentityMap()->removeFromIdentityMap($entityName, $id);
-  }
-
-  /**
-   * createEntity
-   *
-   * Return a new entity instance
-   * 
-   * @param string $entityName The entity name
-   * @return Orm\Entity\IEntity
-   */
-  public function createEntity($entityName)
-  {
-    return $this->getFactory()->createEntity($entityName, $this);
   }
 
   /**
@@ -368,12 +355,123 @@ class EntityManager
     return $this->getEntityRepository($entityName)->findMany($entityName, $criteria);
   }
 
+  /**
+   * newEntity
+   *
+   * Create a new entity instance
+   * 
+   * @param  [type] $className [description]
+   * @return [type]            [description]
+   */
+  public function newEntity($className)
+  { 
+    $entity = new $className();
+
+    return $entity;
+  }
+
+  /**
+   * createEntity 
+   * 
+   * @param  [type] $entityName [description]
+   * @param  array  $data       [description]
+   * @return [type]             [description]
+   */
+  protected function createEntity($entityName, array $data = array())
+  {
+    $metadata = $this->getEntityMetadata($entityName);
+    $fields = $metadata->getIdentityFields();
+
+    /** Build array of identity field values **/
+    if ($metadata->hasCompositeIdentity()) {
+      $id = array();
+      foreach ($fields as $fieldName) {
+        if (isset($data[$fieldName])) {
+          $id[$fieldName] = $data[$fieldName];
+        } else if ($metadata->hasForeignIdentity()) {
+          $columnName = $metadata->getColumnForField($fieldName);
+          if (isset($data[$columnName])) $id[$fieldName] = $data[$columnName];
+        }
+      }
+    } else {
+      $fieldName = $metadata->getSingleIdentityField();
+      $id = array($fieldName => $data[$fieldName]);
+    }
+
+    $load = false;
+    if ($this->isInIdentityMap($entityName, $id)) {
+      $entity = $this->getFromIdentityMap($entityName, $id);
+      if (! $entity->isLoaded()) $load = true;
+    } else {
+      $entity = $this->newEntity($metadata->getClassName());
+      $this->addToIdentityMap($entity, $id);
+      $load = true;
+    }
+
+    if (false == $load) {
+      return $entity;
+    }
+    $entity->setLoaded(true);
+    $entity->setEntityManager($this);
+
+    /** Field Mappings  **/
+    $mappings = $metadata->getFieldMappings();
+    for ($data as $columnName => $value) {
+      $fieldName = $metadata->getField($columnName);
+      if (isset($mappings[$fieldName])) {
+        $metadata->getReflectionField($fieldName)->setValue($entity, $value);
+      }
+    }
+    /** Association mappings **/
+    $associations = $metadata->getAssociationMappings();
+    for ($associations as $assoc) {
+      $targetMetadata = $this->getEntityMetadata($assoc['targetEntityName']);
+
+      switch($targetMetadata['type']) {
+        case Metadata\EntityMetadata::ASSOC_ONE_TO_ONE:
+          if ($assoc['isOwningSide']) {
+
+            foreach ($assoc['targetToSourceKeyColumns'] as $targetColumn => $sourceColumn) {
+              if (isset($data[$sourceColumn])) {
+                $assocFieldName = $targetMetadata->getField($targetColumn);
+                $assocId[$assocFieldName] = $data[$sourceColumn]; 
+              }
+            }
+            if (empty($assocId)) {
+              $metadata->getReflectionField($assoc['fieldName'])->setValue($entity, null);
+            } else {
+              if ($this->isInIdentityMap($assoc['targetEntityName'], $assocId)) {
+                $targetEntity = $this->getFromIdentityMap($assoc['targetEntityName'], $assocId);
+              } else {
+                if ($assoc['loadType'] == Entity\EntityMetadata::LOAD_EAGER) {
+                  $targetEntity = $this->findById($assoc['targetEntityName'], $assocId);
+                } else {
+                  $targetentity = $this->newEntity($targetMetadata->getClassName());
+                  $this->addToIdentityMap($entity, $assocId);
+                }
+              }
+              $metadata->getReflectionField($assoc['fieldName'])->setValue($targetEntity, $targetEntity); 
+            }
+          } else {
+            $targetEntity = $this->getEntityPersister($assoc['targetEntityName'])->findOneToOneEntity($assoc, $entity);
+            $metadata->getReflectionField($assoc['fieldName'])->setValue($targetEntity, $targetEntity);
+          }
+        break;
+        default:
+          $collection = new Entity\EntityCollection($assoc['targetEntityName'], $this, new Collection());
+          $collection->setOwner($entity, $assoc);
+          $metadata->getReflectionField($assoc['fieldName'])->setValue($entity, $collection);
+
+          if ($assoc['loadType'] == Entity\EntityMetadata::LOAD_EAGER) {
+            $this->loadCollection($collection);
+          }
+      }
+    }
+    return $entity;
+}
 
 
 
-  //public function save(Entity\IEntity $entity);
-
-  //public function delete($entityName, $id);
 
 
 
