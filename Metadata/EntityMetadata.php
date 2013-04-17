@@ -14,7 +14,7 @@ use Orm\Entity;
  * 
  * @author  Alex Patterson <alex.patterson.webdev@gmail.com>
  */
-abstract class EntityMetadata
+class EntityMetadata
 {
   const ASSOC_ONE_TO_ONE = 'onetoone';
   const ASSOC_ONE_TO_MANY = 'onetomany';

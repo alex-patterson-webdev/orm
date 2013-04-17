@@ -3,6 +3,7 @@
 namespace Orm\Metadata\Driver;
 
 use Orm\Database;
+use Orm\Metadata;
 
 /**
  * DatabaseDriver
@@ -70,7 +71,7 @@ use Orm\Database;
    * 
    * @param Orm\Database\Adapter $dbAdapter The database adapter
    */
-  public function __construct(Database\Adapter $dbAdapter, array $options)
+  public function __construct(\Zend_Db_Adapter_Abstract $dbAdapter, array $options)
   {
     $this->_dbAdapter = $dbAdapter;
     $this->setOptions($options);
@@ -126,7 +127,7 @@ use Orm\Database;
    * 
    * @param Orm\Database\Adapter $dbAdapter The database adapter
    */
-  public function setDatabaseAdapter(Orm\Database\Adapter $dbAdapter)
+  public function setDatabaseAdapter(\Zend_Db_Adapter_Abstract $dbAdapter)
   {
     $this->_dbAdapter = $dbAdapter;
   }
@@ -220,7 +221,7 @@ use Orm\Database;
    */
   protected function createQuery($tableName)
   {
-    return $this->getDatabaseAdapter()->select()->table($tableName);
+    return $this->getDatabaseAdapter()->select()->from($tableName);
   }
 
   /**
@@ -244,7 +245,7 @@ use Orm\Database;
   {
     if (empty($this->_entityNames)) {
       $db = $this->getDatabaseAdapter();
-      $q = $db->select()->from($this->getEntityTableName(), array('name'))->orderBy(array('name asc'));
+      $q = $db->select()->from($this->getEntityTableName(), array('entity_name'))->order(array('entity_name asc'));
       $this->_entityNames = $db->fetchCol($q);
     }
     return $this->_entityNames;
@@ -261,7 +262,7 @@ use Orm\Database;
   {
     if (! isset($this->_entityMetadata[$entityName])) {
       $tableName = $this->getFieldTableName();
-      $query = $this->createQuery($tableName)->where('name = ?', $entityName);
+      $query = $this->createQuery($tableName)->where('entity_name = ?', $entityName);
       $result = $this->loadMetadata($query);
       $this->_entityMetadata[$entityName] = $result[0];
     }
@@ -377,6 +378,11 @@ use Orm\Database;
   public function populate(Metadata\Factory $factory, $entityName)
   {
     $entityData = $this->getEntityMetadata($entityName);
+
+var_dump($entityData);
+die('ji');
+
+
     $className = $entityData['class_name'];
     $metadata = $factory->newMetadata($className);
 

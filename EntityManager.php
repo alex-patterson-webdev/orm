@@ -60,6 +60,8 @@ class EntityManager
   public function __construct()
   {
 
+
+    return $this;
   }
 
   /**
@@ -99,6 +101,12 @@ class EntityManager
     return $this->_dbAdapter;
   }
 
+  public function setDatabaseAdapter($dbAdapter)
+  {
+    $this->_dbAdapter = $dbAdapter;
+  }
+
+
   /**
    * getMetadataDriver
    * 
@@ -108,9 +116,9 @@ class EntityManager
   {
     $database = $this->getDatabaseAdapter();
     $options = array(
-      'entityTableName' => 'fw_metadata_entity',
-      'fieldTableName' => 'fw_metadata_field',
-      'associationTableName' => 'fw_metadata_association'
+      'entityTableName' => 'fw_entity',
+      'fieldTableName' => 'fw_field',
+      'associationTableName' => 'fw_association'
     );
     return new Metadata\Driver\DatabaseDriver($database, $options);
   }
@@ -174,40 +182,16 @@ class EntityManager
   public function getEntityRepository($entityName)
   {
     if (! isset($this->_repositories[$entityName])) {
-      try {
+      //try {
         $metadata = $this->getEntityMetadata($entityName);
         $className = $metadata->getRepositoryClassName();
         $repository = new $className($metadata, $this);
         $this->_repositories[$entityName] = $repository;
-      } catch (\Exception $e) {
-        throw new \Exception('Unknown repository class name ' . $className .' for entity ' . $metadata->getEntityName());
-      }
+      //} catch (\Exception $e) {
+        //throw new \Exception('Unknown repository class name ' . $className .' for entity ' . $entityName);
+      //}
     }
     return $this->_repositories[$entityName];
-  }
-
-  /**
-   * getIdentityMap
-   *
-   * Return the identity map instance
-   * 
-   * @return Orm\IdentityMap
-   */
-  protected function getIdentityMap()
-  {
-    return $this->_identityMap;
-  }
-
-  /**
-   * setUnitOfWork
-   *
-   * Set the identity map instance
-   * 
-   * @param Orm\IdentityMap $identityMap The identity map instance
-   */
-  protected function setIdentityMap(Orm\IdentityMap $identityMap)
-  {
-    $this->_identityMap = $identityMap;
   }
 
   /**
@@ -416,7 +400,7 @@ class EntityManager
 
     /** Field Mappings  **/
     $mappings = $metadata->getFieldMappings();
-    for ($data as $columnName => $value) {
+    foreach ($data as $columnName => $value) {
       $fieldName = $metadata->getField($columnName);
       if (isset($mappings[$fieldName])) {
         $metadata->getReflectionField($fieldName)->setValue($entity, $value);
@@ -424,7 +408,7 @@ class EntityManager
     }
     /** Association mappings **/
     $associations = $metadata->getAssociationMappings();
-    for ($associations as $assoc) {
+    foreach ($associations as $assoc) {
       $targetMetadata = $this->getEntityMetadata($assoc['targetEntityName']);
 
       switch($targetMetadata['type']) {

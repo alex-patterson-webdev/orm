@@ -21,7 +21,7 @@ class IdentityMap
    * @param  array  $id The identity map key
    * @return string The entity key   
    */
-  protected function getIndentityMapKey(array $id)
+  protected function getIdentityMapKey(array $id)
   {
     return implode("-", $id);
   }
