@@ -295,12 +295,10 @@ use Orm\Metadata;
    */
   protected function loadAssociationMetadata($entityName)
   {
-    if (! isset($this->_associationMetadata[$entityName])) {
-      $tableName = $this->getAssociationTableName();
-      $query = $this->createQuery($tableName)->where('entity_name = ?', $entityName);
-      $this->_associationMetadata[$entityName] = $this->loadMetadata($query);
-    }
-    return $this->_associationMetadata[$entityName];
+    $tableName = $this->getAssociationTableName();
+    $query = $this->createQuery($tableName)->where('entity_name = ?', $entityName);
+    
+    return $this->loadMetadata($query);
   }
 
   /**
