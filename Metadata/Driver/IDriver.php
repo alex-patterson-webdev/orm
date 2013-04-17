@@ -6,6 +6,7 @@ use Orm\Metadata;
 
 interface IDriver
 {
+  
   public function getAllEntityNames();
 
   public function getEntityMetadata($entityName);
@@ -13,7 +14,5 @@ interface IDriver
   public function getFieldMetadata($entityName);
 
   public function getAssociationMetadata($entityName);
-
-  public function populate(Metadata\Factory $factory, $entityName);
 
 }

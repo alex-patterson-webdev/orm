@@ -116,9 +116,9 @@ class EntityManager
   {
     $database = $this->getDatabaseAdapter();
     $options = array(
-      'entityTableName' => 'fw_entity',
-      'fieldTableName' => 'fw_field',
-      'associationTableName' => 'fw_association'
+      'entity' => 'fw_entity',
+      'fields' => 'fw_field',
+      'assoc' => 'fw_association'
     );
     return new Metadata\Driver\DatabaseDriver($database, $options);
   }

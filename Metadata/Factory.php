@@ -15,6 +15,13 @@ class Factory
   protected $_driver = null;
 
   /**
+   * $_metadata
+   * 
+   * @var array
+   */
+  protected $_metadata = array();
+
+  /**
    * __construct
    *
    * @param Database\Adapter $dbAdapter      [description]
@@ -23,9 +30,23 @@ class Factory
   public function __construct(Driver\IDriver $driver)
   {
     $this->_driver = $driver;
-    $this->_names = $driver->getAllEntityNames();
+    $this->init();
 
     return $this;
+  }
+
+  /**
+   * init
+   *
+   * Load the entity metadata for a given entity
+   * 
+   * @return void
+   */
+  protected function init()
+  {
+    foreach($driver->getAllEntityNames() as $name) {
+      $this->_metadata[$name] = $driver->getEntityMetadata($name);
+    }
   }
 
   /**
@@ -38,7 +59,7 @@ class Factory
    */
   protected function hasMetadataFor($entityName)
   {
-    return (in_array($entityName, $this->_names)) ? true : false;
+    return (isset($this->_metadata[$entityName])) ? true : false;
   }
 
   /**
@@ -50,7 +71,7 @@ class Factory
    * @param  [type] $entityName [description]
    * @return [type]             [description]
    */
-  public function getEntityMetadata($entityName)
+  public function createEntityMetadata($entityName)
   {
     if (! isset($this->_metadata[$entityName])) {
       $this->_metadata[$entityName] = $this->loadEntityMetadata($entityName);
@@ -85,7 +106,19 @@ class Factory
     if (! $this->hasMetadataFor($entityName)) {
       throw new \InvalidArgumentException('Cannot fetch metadata for unknown entity ' . $entityName);
     }
-    return $this->_driver->populate($this, $entityName);
+    $data = $this->_driver->getEntityMetadata($entityName); 
+    $metadata = new EntityMetadata($data['className'], $data);
+
+    $fields = $this->_driver->getFieldMappings($entityName);
+    foreach($fields as $fieldMapping) {
+      $metadata->addFieldMapping($fieldMapping);
+    }
+    $assoc = $this->_driver->getAssociationMappings($entityName);
+    foreach($assoc as $assocMapping) {
+      $metadata->addAssociationMapping($assoc);
+    }
+    
+    return $metadata;
   }
 
 

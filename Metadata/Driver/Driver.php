@@ -21,7 +21,6 @@ abstract class Driver implements IDriver
   const META_ENTITY = 'entity';
   const META_FIELDS = 'fields';
   const META_ASSOC = 'assoc';
-  const META_NAMES = 'names';
 
   /**
    * $_entityNames
@@ -44,10 +43,10 @@ abstract class Driver implements IDriver
    * 
    * @return 
    */
-  public function getEntityNames()
+  public function getAllEntityNames()
   {
     if (empty($this->_entityNames)) {
-      $this->_entityNames = $this->loadEntityNames();
+      $this->_entityNames = $this->loadAllEntityNames();
     }
     return $this->_entityNames;
   }
@@ -108,7 +107,7 @@ abstract class Driver implements IDriver
       /* exit early if its already loaded **/
       return $this->_metadata[$type][$entityName];
     } 
-    else if (in_array($entityName, $this->getEntityNames()) {
+    else if (in_array($entityName, $this->getEntityNames())) {
       switch($type) {
         case self::META_ENTITY:
           $metadata = $this->loadEntityMetadata($entityName);
@@ -130,13 +129,13 @@ abstract class Driver implements IDriver
   }
 
   /**
-   * loadEntityNames
+   * loadAllEntityNames
    *
    * Load all the entity names into an array
    * 
    * @return array Array of unique entity names
    */
-  abstract protected function loadEntityNames();
+  abstract protected function loadAllEntityNames();
 
   /**
    * loadEntityMetadata

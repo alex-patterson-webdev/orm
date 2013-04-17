@@ -12,46 +12,8 @@ use Orm\Metadata;
  * 
  * @author  Alex Patterson <alex.patterson.webdev@gmail.com>
  */
- class DatabaseDriver implements IDriver
+ class DatabaseDriver extends Driver
 {
-  /**
-   * $_options
-   *
-   * @var array Driver configuration options
-   */
-  protected $_options = array();
-
-  /**
-   * $_entityTableName
-   *
-   * @var string Database table name that holds the
-   * entity metadata information
-   */
-  protected $_entityTableName = '';
-
-  /**
-   * $_fieldTableName
-   * 
-   * @var string Database table name that holds the
-   * entity field metadata
-   */
-  protected $_fieldTableName = '';
-
-  /**
-   * $_associationTableName
-   *
-   * @var string Databse table name that holds the
-   * entity association metadata mappings
-   */
-  protected $_associationTableName = '';
-
-
-  protected $_entityMetadata = array();
-
-  protected $_fieldMetadata = array();
-
-  protected $_associationMetadata = array();
-
   /**
    * $_dbAdapter
    * 
@@ -60,52 +22,26 @@ use Orm\Metadata;
   protected $_dbAdapter = null;
   
   /**
-   * $_names
+   * $_tableNames
    *
-   * @var array All entity names that the driver holds metadata for
+   * Array of database table names to fetch the metadata
+   * from
+   * 
+   * @var array
    */
-  protected $_names = array();
+  protected $_tableNames = array();
 
   /**
    * _construct
    * 
    * @param Orm\Database\Adapter $dbAdapter The database adapter
    */
-  public function __construct(\Zend_Db_Adapter_Abstract $dbAdapter, array $options)
+  public function __construct(\Zend_Db_Adapter_Abstract $dbAdapter, array $tableNames)
   {
     $this->_dbAdapter = $dbAdapter;
-    $this->setOptions($options);
+    $this->setTableNames($tableNames);
 
     return $this;
-  }
-
-  /**
-   * setOptions
-   *
-   * Set the options for the driver
-   * 
-   * @param array $options The driver options
-   */
-  protected function setOptions(array $options)
-  {
-    foreach($options as $option => $value) {
-      switch(strtolower($option)) {
-        case 'entitytablename':
-          $this->setEntityTableName($value);
-        break;
-        case 'fieldtablename':
-          $this->setFieldTableName($value);
-        break;
-        case 'associationtablename':
-          $this->setAssociationTableName($value);
-        break;
-        case 'dbadapter':
-          $this->setDatabaseAdapter($value);
-        break;
-        default:
-          $this->_options[$option] = $value;
-      }
-    }
   }
 
   /**
@@ -117,6 +53,9 @@ use Orm\Metadata;
    */
   protected function getDatabaseAdapter()
   {
+    // if (is_null($this->_dbAdapter)) {
+    //   throw \Exception('The database adapter has not been defined');
+    // }
     return $this->_dbAdapter;
   }
 
@@ -130,6 +69,33 @@ use Orm\Metadata;
   public function setDatabaseAdapter(\Zend_Db_Adapter_Abstract $dbAdapter)
   {
     $this->_dbAdapter = $dbAdapter;
+  }
+
+  /**
+   * setTableNames
+   *
+   * Set the database table names where the driver will fetch the 
+   * metadata from
+   * 
+   * @param array $tableNames The names of the tables to set
+   */
+  public function setTableNames(array $tableNames)
+  {
+    foreach($tableNames as $type => $tableName) {
+      switch($type) {
+        case Driver::META_ENTITY:
+          $this->setEntityTableName($tableName);
+        break;
+        case Driver::META_FIELDS:
+          $this->setFieldTableName($tableName);
+        break; 
+        case Driver::META_ASSOC:
+          $this->setAssociationTableName($tableName);
+        break;
+        default:
+          throw new \InvalidArgumentException(sprintf('Unknown metadata type %s', $type));
+      }
+    }
   }
 
   /**
@@ -211,78 +177,83 @@ use Orm\Metadata;
   }
 
   /**
-   * executeQuery
-   *
-   *  Execute the provided SQL statement and return the
-   *  result set
+   * loadAllEntityNames
    * 
-   * @param string $sql The SQL statement to execute
-   * @return array  $result
+   * @return array The entity names as a simple array
    */
-  protected function createQuery($tableName)
+  public function loadAllEntityNames()
   {
-    return $this->getDatabaseAdapter()->select()->from($tableName);
-  }
-
-  /**
-   * loadEntityMetadata
-   * 
-   * @param string $tableName
-   * @return  array $metadata 
-   */
-  protected function loadMetadata($query)
-  {
-    $db = $this->getDatabaseAdapter();
-    return $db->query($query)->fetchAll();
-  }
-
-  /**
-   * getAllEntityNames
-   * 
-   * @return [type] [description]
-   */
-  public function loadEntityNames()
-  {
-    if (empty($this->_entityNames)) {
+    if (! strlen($this->_entityTableName)) {
+      throw \InvalidArgumentException('Missing entity table name');
+    } else {    
       $db = $this->getDatabaseAdapter();
-      $q = $db->select()->from($this->getEntityTableName(), array('entity_name'))->order(array('entity_name asc'));
-      $this->_entityNames = $db->fetchCol($q);
+      $query = $db->select()->from($this->_entityTableName, array('entity_name'));
+      return $db->fetchCol($query);
     }
-    return $this->_entityNames;
   }
 
   /**
    * loadEntityMetadata
+   *
+   * Load the entity metadata for an entity
    * 
-   * @param  [type] $tableName [description]
-   * @param  array  $orderBy   [description]
-   * @return [type]            [description]
+   * @param string $entityName The entity name
+   * @return array 
    */
   protected function loadEntityMetadata($entityName)
   {
-    if (! isset($this->_entityMetadata[$entityName])) {
-      $tableName = $this->getFieldTableName();
-      $query = $this->createQuery($tableName)->where('entity_name = ?', $entityName);
-      $result = $this->loadMetadata($query);
-      $this->_entityMetadata[$entityName] = $result[0];
+    if (! strlen($this->_entityTableName)) {
+      throw \InvalidArgumentException('Missing entity table name');
+    } 
+    else { 
+      $db = $this->getDatabaseAdapter();
+      $query = $db->select()->from($this->_entityTableName)->where('entity_name = ?', $entityName);
+      $result = $db->query($query)->fetch();
+      
+      if (empty($result)) {
+        throw \Exception(sprintf('The entity metadata for entity %s was not found', $entityName));
+      }
+      $metadata = array(
+        'entityName' => $result['entity_name'],
+        'className' => $result['class_name'],
+        'tableName' => $result['table_name'],
+        'repositoryClassName' => $result['repository_class_name']
+      );
+      return $metadata;
     }
-    return $this->_entityMetadata[$entityName];
   }
 
   /**
    * loadFieldMetadata
+   *
+   * Load the field metadata for a given entity name
    * 
-   * @param  [type] $tableName [description]
-   * @return [type]            [description]
+   * @param string $entityName The entity name
+   * @return array  The field metadata
    */
   protected function loadFieldMetadata($entityName)
   {
-    if (! isset($this->_fieldMetadata[$entityName])) {
-      $tableName = $this->getFieldTableName();
-      $query = $this->createQuery($tableName)->where('entity_name = ?', $entityName);
-      $this->_fieldMetadata[$entityName] = $this->loadMetadata($query);
+    if (! strlen($this->_fieldTableName)) {
+      throw \InvalidArgumentException('Missing field metadata table name');
+    } 
+    else { 
+      $db = $this->getDatabaseAdapter();
+      $query = $db->select()->from($this->_fieldTableName)->where('entity_name = ?', $entityName);
+      $result = $db->query($query)->fetchAll();    
+      
+      $mappings = array();
+      foreach($result as $mapping) {
+        $mappings[] = array(
+          'fieldName' => $mapping['field_name'],
+          'columnName' => $mapping['column_name'],
+          'identity' => $mapping['is_identity'],
+          'dataType' => $mapping['data_type'],
+          'dataLength' => $mapping['data_length'],
+          'defaultValue' => $mapping['default_value']
+        );
+      }
     }
-    return $this->_fieldMetadata[$entityName];
+    return $mappings;
   }
 
   /**
@@ -295,143 +266,36 @@ use Orm\Metadata;
    */
   protected function loadAssociationMetadata($entityName)
   {
-    $tableName = $this->getAssociationTableName();
-    $query = $this->createQuery($tableName)->where('entity_name = ?', $entityName);
-    
-    return $this->loadMetadata($query);
+    if (! strlen($this->_associationTableName)) {
+      throw \InvalidArgumentException('Missing field metadata table name');
+    } 
+    else { 
+      $db = $this->getDatabaseAdapter();
+      $query = $db->select()->from($tableName)->where('entity_name = ?', $entityName);
+      $result = $db->query($query)->fetchAll();    
+
+      $mappings = array();
+      foreach($result as $mapping) {
+        $mappings[] = array(
+          'type' => $mapping['association_type'],
+          'fieldName' => $mapping['field_name'],
+          'identity' => $mapping['identity'],
+          'sourceEntityName' => $mapping['entity_name'],
+          'targetEntityName' => $mapping['target_entity_name'],
+          'mappedByColumn' => $mapping['mapped_by_column_name'],
+          'inversedByColumn' => $mapping['inversed_by_column_name'],
+          'loadType' => $mapping['load_type'],
+          'joinColumns' => explode(',', $mapping['join_column_names']),
+          'referencedColumns' => explode(',', $mapping['referenced_column_names']),
+          'joinTable' => array(
+            'name' => $mapping['join_table_name'],
+            'joinColumns' => array(),
+            'inverseJoinColumns' => array()
+           ),
+        );
+      }
+    }
+    return $mappings;
   }
-
-  /**
-   * getAllEntityNames
-   *
-   * Return all the entity names that the driver holds metadata for
-   * 
-   * @return [type] [description]
-   */
-  public function getAllEntityNames()
-  {
-    if (empty($this->_names)) {
-      $this->_names = $this->loadEntityNames();
-    }
-    return $this->_names;
-  }
-
-  /**
-   * getEntityMetadata
-   *
-   * Return the entity metadata for a given entity name
-   * 
-   * @param  [type] $entityName [description]
-   * @return [type]             [description]
-   */
-  public function getEntityMetadata($entityName)
-  {
-    if (! isset($this->_entityMetadata[$entityName])) {
-      $this->_entityMetadata[$entityName] = $this->loadEntityMetadata($entityName);
-    }
-    return $this->_entityMetadata[$entityName];
-  }
-
-  /**
-   * getFieldMetadata
-   *
-   *  Return the field metadata for a given entity name
-   * 
-   * @param  [type] $entityName [description]
-   * @return [type]             [description]
-   */
-  public function getFieldMetadata($entityName)
-  {
-    if(! isset($this->_fieldMetadata[$entityName])) {
-      $this->_fieldMetadata[$entityName] = $this->loadFieldMetadata($entityName);
-    }
-    return $this->_fieldMetadata[$entityName];
-  }
-
-  /**
-   * getAssociationMetadata
-   *
-   * Return the association metadata for a given entity name
-   * 
-   * @param  [type] $entityName [description]
-   * @return [type]             [description]
-   */
-  public function getAssociationMetadata($entityName)
-  {
-    if (! isset($this->_associationMetadata[$entityName])) {
-      $this->_associationMetadata[$entityName] = $this->loadAssociationMetadata($entityName);
-    }
-    return $this->_associationMetadata[$entityName];
-  }
-
-  /**
-   * populate
-   *
-   * Populate the entity metadata
-   * 
-   * @param  Metadata\Factory $factory    [description]
-   * @param  [type]           $entityName [description]
-   * @return [type]                       [description]
-   */
-  public function populate(Metadata\Factory $factory, $entityName)
-  {
-    $entityData = $this->getEntityMetadata($entityName);
-
-var_dump($entityData);
-die('ji');
-
-
-    $className = $entityData['class_name'];
-    $metadata = $factory->newMetadata($className);
-
-    if (! $metadata instanceof Metadata\EntityMetadata) {
-      throw new \Exception('Could not create metadata for entity ' . $entityName);
-    }
-    
-    /** Set the basic entity metadata **/
-    $metadata->setEntityName($entityName);
-    $metadata->setClassName($className);
-    $metadata->setTableName($entityData['table_name']);
-    $metadata->setRepositoryClassName($entityData['repository_class_name']);
-
-    /** Field mappings **/
-    $fieldMappings = $this->getFieldMetadata($entityName);
-    foreach($fieldMappings as $mapping) {
-      $fieldMapping = array(
-        'fieldName' => $mapping['field_name'],
-        'columnName' => $mapping['column_name'],
-        'identity' => $mapping['is_identity'],
-        'dataType' => $mapping['data_type'],
-        'dataLength' => $mapping['data_length'],
-        'defaultValue' => $mapping['default_value']
-      );
-      $metadata->addFieldMapping($fieldMapping);
-    }
-
-    /** Association mappings **/
-    $assocMappings = $this->getAssociationMetadata($entityName);
-    foreach($assocMappings as $mapping) {
-      $assocMapping = array(
-        'type' => $mapping['association_type'],
-        'fieldName' => $mapping['field_name'],
-        'identity' => $mapping['identity'],
-        'sourceEntityName' => $mapping['entity_name'],
-        'targetEntityName' => $mapping['target_entity_name'],
-        'mappedByColumn' => $mapping['mapped_by_column_name'],
-        'inversedByColumn' => $mapping['inversed_by_column_name'],
-        'loadType' => $mapping['load_type'],
-        'joinColumns' => explode(',', $mapping['join_column_names']),
-        'referencedColumns' => explode(',', $mapping['referenced_column_names']),
-        'joinTable' => array(
-          'name' => $mapping['join_table_name'],
-          'joinColumns' => array(),
-          'inverseJoinColumns' => array()
-        )
-      );
-      $metadata->addAssociationMapping($assocMapping);
-    }
-    return $metadata;
-  }
-
 
 }
