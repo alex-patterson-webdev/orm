@@ -38,34 +38,77 @@ abstract class Driver implements IDriver
   protected $_metadata = array();
 
   /**
-   * isValidEntityName
+   * getEntityNames
    *
-   * Check if the provided entity name is one that
-   * this driver has metadata for
+   * Return the entity names
    * 
-   * @return boolean If the entity name is valid
+   * @return 
    */
-  protected function isValidEntityName($entityName)
+  public function getEntityNames()
   {
     if (empty($this->_entityNames)) {
-      $this->_entityName
+      $this->_entityNames = $this->loadEntityNames();
     }
-    return $this->_entityNames()
+    return $this->_entityNames;
   }
 
+  /**
+   * getEntityMetadata
+   *
+   * Return the entity metadata for a given entity name
+   * 
+   * @param string $entityName The name of the entity owning metadata
+   * @return array The entity's metadata
+   */
+  public function getEntityMetadata($entityName) 
+  {
+    return $this->loadMetadata(self::META_ENTITY, $entityName);
+  }
+
+  /**
+   * getFieldMetadata
+   *
+   * Return the field metadata for a given entity name
+   * 
+   * @param string $entityName The name of the entity owning the fields
+   * @return array The entity's field metadata
+   */
+  public function getFieldMetadata($entityName) 
+  {
+    return $this->loadMetadata(self::META_FIELDS, $entityName);
+  }
+
+  /**
+   * getAssociationMetadata
+   *
+   * Return the association metadata for a given entity name
+   * 
+   * @param string $entityName The name of the entity owning the associations
+   * @return array The entity's association metadata
+   */
+  public function getAssociationMetadata($entityName) 
+  {
+    return $this->loadMetadata(self::META_FIELDS, $entityName);
+  }
 
   /**
    * loadMetadata
    *
-   * Load the required metadata for a given entity
+   * Load the required metadata for a given entity name
    * 
-   * @param string $type   The type of metadat to retreve
-   * @param string $entityName The name of the entity
-   * @return array $metadata The entity metadata of desired type
+   * @param string $type The type of metadata to retreve
+   * @param string $entityName The name of the entity to load the metadata for
+   * @return array $metadata The entity metadata of the desired type
+   * @throws \InvalidArgumentException When the type is unknown
+   * @throws \Exception If the entity name is not known to this driver
    */
   protected function loadMetadata($type, $entityName)
   {
-    if ($this->isValidEntityName($entityName)) {
+    if (isset($this->_metadata[$type][$entityName])) {
+      /* exit early if its already loaded **/
+      return $this->_metadata[$type][$entityName];
+    } 
+    else if (in_array($entityName, $this->getEntityNames()) {
       switch($type) {
         case self::META_ENTITY:
           $metadata = $this->loadEntityMetadata($entityName);
@@ -86,48 +129,42 @@ abstract class Driver implements IDriver
     }
   }
 
-
-
   /**
-   * getMetadata
+   * loadEntityNames
    *
-   * Return the entity metadata for a given entity name
+   * Load all the entity names into an array
    * 
-   * @param string $entityName The entity name
-   * @return array $metadata The entity metadata
+   * @return array Array of unique entity names
    */
-  public function getEntityMetadata($entityName)
-  {
-    if (isset($this->_metadata['entity'][$entityName])) {
-      $this->loadMetadata('entity', $entityName);
-    }
-    return $this->_metadata['entity'][$entityName];
-  }
-
-
-
-
-
-
-
   abstract protected function loadEntityNames();
 
-  public function getEntityNames()
-  {
-    return $this->_entityNames;
-  }
+  /**
+   * loadEntityMetadata
+   *
+   * Load the metadata for one entity
+   * 
+   * @return array $metadata The entity metadata
+   */
+  abstract protected function loadEntityMetadata($entityName);
 
+  /**
+   * loadFieldMetadata
+   *
+   * Load the field metadata
+   * 
+   * @param array $entityName The entity name
+   * @return array $metadata The entity's field metadata
+   */
+  abstract protected function loadFIeldMetadata($entityName);
 
-  public function getEntities()
-  {
-
-  }
-
-
-  abstract protected function loadEntities();
-
-  abstract protected function loadFields();
-
-  abstract protected function loadAssociations();
+  /**
+   * loadAssociationMetadata
+   *
+   * Load the association metadata for a given entity name
+   * 
+   * @param string $entityName The entity name
+   * @return array $metadata The entity's association metadata
+   */
+  abstract protected function loadAssociationMetadata($entityName);
 
 }
