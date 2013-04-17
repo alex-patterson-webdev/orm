@@ -141,9 +141,9 @@ class EntityMetadata
         case 'entityname':
           $this->setEntityName($value);
         break;
-        case 'classname':
-          $this->setClassName($value);
-        break;
+        //case 'classname':
+        //  $this->setClassName($value);
+        //break;
         case 'tablename':
           $this->setTableName($value);
         break;
@@ -335,14 +335,17 @@ class EntityMetadata
    * @param string $fieldName The field name to hold the mapping
    * @param array  $mapping  The raw mapping metadata for this field
    */
-  public function addFieldMapping($fieldName, array $mapping)
+  public function addFieldMapping(array $mapping)
   {
+    $mappings = $this->completeFieldMapping($mapping);
+    $fieldName = $mappings['fieldName'];
+
     if (isset($this->_fieldMappings[$fieldName]) || isset($this->_associationMappings[$fieldName])) {
       throw new InvalidArgumentException(
         "The field name '" . $fieldName ."'' has already been defined for entity '". $this->_entityName ."'"
       );
     }
-    $this->_fieldMappings[$fieldName] = $this->completeFieldMapping($mapping);
+    $this->_fieldMappings[$fieldName] = $mappings;
   }
 
   /**
@@ -487,9 +490,9 @@ class EntityMetadata
     $mapping['isOwningSide'] = true;
 
     if (! isset($mapping['fieldName'])) {
-      throw new InvalidArgumentException('Relationship mapping must have a field name');
+      throw new \nvalidArgumentException('Relationship mapping must have a field name');
     } else if (! isset($mapping['targetEntityName'])) {
-      throw new InvalidArgumentException("The 'targetEntityName' parameter is required for all association mappings");
+      throw new \InvalidArgumentException("The 'targetEntityName' parameter is required for all association mappings");
     }
 
     if (! isset($mapping['sourceEntityName'])) $mapping['sourceEntityName']  = $this->_entityName;
@@ -498,7 +501,7 @@ class EntityMetadata
 
     if (isset($mapping['identity']) && $mapping['identity'] == true) {
       if (! in_array($mapping['fieldName'], $this->_identityFields) && count($mapping['joinColumns']) > 1) {
-        throw new InvalidArgumentException('Cannot map composite identity as foreign identity');
+        throw new \InvalidArgumentException('Cannot map composite identity as foreign identity');
       } else {
         $this->_identityFields[] = $mapping['fieldName'];
         $this->_foreignIdentity = true;
@@ -506,7 +509,7 @@ class EntityMetadata
     }
 
     if (count($mapping['joinColumns']) != count($mapping['referencedColumns'])) {
-      throw new InvalidArgumentException('Each joined column must has a referenced column');
+      throw new \InvalidArgumentException('Each joined column must has a referenced column');
     }
 
     $joins = array();

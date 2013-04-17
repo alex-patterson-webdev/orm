@@ -87,7 +87,7 @@ abstract class Driver implements IDriver
    */
   public function getAssociationMetadata($entityName) 
   {
-    return $this->loadMetadata(self::META_FIELDS, $entityName);
+    return $this->loadMetadata(self::META_ASSOC, $entityName);
   }
 
   /**
@@ -103,11 +103,11 @@ abstract class Driver implements IDriver
    */
   protected function loadMetadata($type, $entityName)
   {
-    if (isset($this->_metadata[$type][$entityName])) {
+    if (isset($this->_metadata[$type][$entityName]) && ! empty($this->_metadata[$type][$entityName])) {
       /* exit early if its already loaded **/
       return $this->_metadata[$type][$entityName];
     } 
-    else if (in_array($entityName, $this->getEntityNames())) {
+    else if (in_array($entityName, $this->getAllEntityNames())) {
       switch($type) {
         case self::META_ENTITY:
           $metadata = $this->loadEntityMetadata($entityName);
@@ -115,14 +115,18 @@ abstract class Driver implements IDriver
         case self::META_FIELDS:
           $metadata = $this->loadFIeldMetadata($entityName);
         break;
-        case sef:META_ASSOC:
+        case self::META_ASSOC:
           $metadata = $this->loadAssociationMetadata($entityName);
         break;
         default:
           throw new \InvalidArgumentException(sprintf('Unknown metadata type %s', $type));
       }
-      if (! isset($this->_metadata[$type])) $this->_metadata[$type] = array();
+      if (! isset($this->_metadata[$type])) {
+        $this->_metadata[$type] = array();
+      }
       $this->_metadata[$type][$entityName] = $metadata;
+
+      return $metadata;
     } else {
       throw new \Exception(sprintf('Cannot find %s metadata for entity %s', $type, $entityName));
     }

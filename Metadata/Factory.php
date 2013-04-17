@@ -44,8 +44,12 @@ class Factory
    */
   protected function init()
   {
-    foreach($driver->getAllEntityNames() as $name) {
-      $this->_metadata[$name] = $driver->getEntityMetadata($name);
+    foreach($this->_driver->getAllEntityNames() as $name) {
+      $this->_metadata[$name] = array(
+        'entity' => $this->_driver->getEntityMetadata($name),
+        'fields' => $this->_driver->getFieldMetadata($name),
+        'assoc' => $this->_driver->getAssociationMetadata($name)
+      );
     }
   }
 
@@ -65,62 +69,28 @@ class Factory
   /**
    * getEntityMetadata
    *
-   * Return the entity metadata instance for a given entity name
-   * The instance will be create is not already
-   * 
-   * @param  [type] $entityName [description]
-   * @return [type]             [description]
-   */
-  public function createEntityMetadata($entityName)
-  {
-    if (! isset($this->_metadata[$entityName])) {
-      $this->_metadata[$entityName] = $this->loadEntityMetadata($entityName);
-    }
-    return $this->_metadata[$entityName];
-  }
-
-  /**
-   * newMetadata
-   *
-   * Return a new metadata instance
-   * 
-   * @param  [type] $className [description]
-   * @param  array  $options   [description]
-   * @return [type]            [description]
-   */
-  public function newMetadata($className, array $metadata = array())
-  {
-    return new EntityMetadata($className, $metadata);
-  }
-
-  /**
-   * loadEntityMetadata
-   *
    * Load the entity metadata for a given entity name
    * 
-   * @param  [type] $entityName [description]
-   * @return [type]             [description]
+   * @param string $entityName The name of the metadata entity
+   * @return  EntityMetadata The loaded entity metadata instance
    */
-  protected function loadEntityMetadata($entityName)
+  public function getEntityMetadata($entityName)
   {
     if (! $this->hasMetadataFor($entityName)) {
       throw new \InvalidArgumentException('Cannot fetch metadata for unknown entity ' . $entityName);
     }
-    $data = $this->_driver->getEntityMetadata($entityName); 
-    $metadata = new EntityMetadata($data['className'], $data);
 
-    $fields = $this->_driver->getFieldMappings($entityName);
-    foreach($fields as $fieldMapping) {
+    $entityMapping = $this->_metadata[$entityName]['entity']; 
+    $metadata = new EntityMetadata($entityMapping['className'], $entityMapping);
+
+    foreach($this->_metadata[$entityName]['fields'] as $fieldMapping) {
       $metadata->addFieldMapping($fieldMapping);
     }
-    $assoc = $this->_driver->getAssociationMappings($entityName);
-    foreach($assoc as $assocMapping) {
-      $metadata->addAssociationMapping($assoc);
+    foreach($this->_metadata[$entityName]['assoc'] as $assocMapping) {
+      $metadata->addAssociationMapping($assocMapping);
     }
-    
+
     return $metadata;
   }
-
-
 
 }
