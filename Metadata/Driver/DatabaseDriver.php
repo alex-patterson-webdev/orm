@@ -271,13 +271,13 @@ use Orm\Metadata;
     } 
     else { 
       $db = $this->getDatabaseAdapter();
-      $query = $db->select()->from($tableName)->where('entity_name = ?', $entityName);
+      $query = $db->select()->from($this->_associationTableName)->where('entity_name = ?', $entityName);
       $result = $db->query($query)->fetchAll();    
 
       $mappings = array();
       foreach($result as $mapping) {
         $mappings[] = array(
-          'type' => $mapping['association_type'],
+          'type' => $mapping['relationship_type'],
           'fieldName' => $mapping['field_name'],
           'identity' => $mapping['identity'],
           'sourceEntityName' => $mapping['entity_name'],

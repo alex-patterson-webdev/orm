@@ -27,10 +27,11 @@ class Factory
    * @param Database\Adapter $dbAdapter      [description]
    * @param Driver\IDriver   $metadataDriver [description]
    */
-  public function __construct(Driver\IDriver $driver)
+  public function __construct(Driver\IDriver $driver, array $options = array())
   {
     $this->_driver = $driver;
-    $this->init();
+
+    $this->init($options);
 
     return $this;
   }
@@ -38,17 +39,17 @@ class Factory
   /**
    * init
    *
-   * Load the entity metadata for a given entity
+   * Load the entity metadata
    * 
    * @return void
    */
-  protected function init()
+  protected function init(array $options)
   {
-    foreach($this->_driver->getAllEntityNames() as $name) {
-      $this->_metadata[$name] = array(
-        'entity' => $this->_driver->getEntityMetadata($name),
-        'fields' => $this->_driver->getFieldMetadata($name),
-        'assoc' => $this->_driver->getAssociationMetadata($name)
+    foreach($this->_driver->getAllEntityNames() as $entityName) {
+      $this->_metadata[$entityName] = array(
+        'entity' => $this->_driver->getEntityMetadata($entityName),
+        'fields' => $this->_driver->getFieldMetadata($entityName),
+        'assoc' => $this->_driver->getAssociationMetadata($entityName)
       );
     }
   }
@@ -87,7 +88,7 @@ class Factory
       $metadata->addFieldMapping($fieldMapping);
     }
     foreach($this->_metadata[$entityName]['assoc'] as $assocMapping) {
-      $metadata->addAssociationMapping($assocMapping);
+      //$metadata->addAssociationMapping($assocMapping);
     }
 
     return $metadata;

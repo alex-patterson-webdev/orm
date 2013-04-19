@@ -16,9 +16,9 @@ use Orm\Entity;
  */
 class EntityMetadata
 {
-  const ASSOC_ONE_TO_ONE = 'onetoone';
-  const ASSOC_ONE_TO_MANY = 'onetomany';
-  const ASSOC_MANY_TO_MANY = 'manytomany';
+  const ASSOC_ONE_TO_ONE = 'ONETOONE';
+  const ASSOC_ONE_TO_MANY = 'ONETOMANY';
+  const ASSOC_MANY_TO_MANY = 'MANYTOMANY';
 
   const DATA_TYPE_INT = 'integer';
   const DATA_TYPE_VAR = 'varchar';
@@ -195,6 +195,18 @@ class EntityMetadata
   }
 
   /**
+   * getRepositoryClassName
+   *
+   * @return string The fully qualified class name for
+   * this entitys
+   */
+  public function getRepositoryClassName()
+  {
+    return 'Orm\Repository';
+    //return $this->_repositoryClassName;
+  }
+
+  /**
    * getTableName
    *
    * Return the database table name
@@ -326,6 +338,24 @@ class EntityMetadata
   }
 
   /**
+   * getFieldMapping
+   *
+   * Return the field mapping for a single field
+   * 
+   * @param string $fieldName The field name
+   * @return array The field metadata
+   */
+  public function getFieldMapping($fieldName)
+  {
+    if (! isset($this->_fieldMappings[$fieldName])) {
+      throw \InvalidArgumentException(
+        sprintf('Cannot get field mapping %s for entity %s', $fieldName, $this->_entityName)
+      );
+    }
+    return $this->_fieldMappings[$fieldName];
+  }
+
+  /**
    * addFieldMapping
    *
    * Add a new field mapping to the entity metadata. Once added the
@@ -373,11 +403,11 @@ class EntityMetadata
 
     if (isset($mapping['identity']) && true == $mapping['identity']) {
       if (! in_array($mapping['fieldName'], $this->_identityFields)) {
-        $this->_identityFields[] = $mappings['fieldName'];
+        $this->_identityFields[] = $mapping['fieldName'];
       }
     }
 
-    return $mappings;
+    return $mapping;
   }
 
   /**
@@ -644,6 +674,7 @@ class EntityMetadata
       $mapping['relationToTargetKeyColumns'] = array();
 
       for ($x = 0; $x < count($mapping['joinTable']['joinColumns']); $x++) {
+
         $joinColumn = $mapping['joinTable']['joinColumns'][$x];
         if (! isset($joinColumn['name']) || ! strlen($joinColumn['name'])) {
           $joinColumn['name'] = strtolower($sourceName . '_id');

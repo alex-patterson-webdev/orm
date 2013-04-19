@@ -148,9 +148,9 @@ class EntityManager
   {
     if (! isset($this->_metadata[$entityName])) {
       $metadata = $this->getMetadataFactory()->getEntityMetadata($entityName);
-      $this->metadata[$entityName] = $metadata;
+      $this->_metadata[$entityName] = $metadata;
     }
-    return $this->metadata;
+    return $this->_metadata[$entityName];
   }
 
   /**
@@ -165,7 +165,7 @@ class EntityManager
   {
     if (! isset($this->_persisters[$entityName])) {
       $metadata = $this->getEntityMetadata($entityName);
-      $this->_persisters[$entityName] = new Persister\Persister($metadata, $this);
+      $this->_persisters[$entityName] = new Persister($metadata, $this);
     }
     return $this->_persisters[$entityName];
   }

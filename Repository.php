@@ -86,7 +86,7 @@ class Repository
   public function findById(array $id)
   {
     /** Check the identity map first **/
-    $em = $this->getEntityManager();
+    $em = $this->_entityManager;
     if ($em->isInIdentityMap($this->_entityName, $id)) {
       $entity = $em->getFromIdentityMap($this->_entityName, $id);  
       return ($entity instanceof $this->_className) ? $entity : null;

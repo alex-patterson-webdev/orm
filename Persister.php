@@ -230,15 +230,15 @@ class Persister
       $conditionSql .= $this->getSelectConditionSql($criteria);
     }
 
-    return 
-      'SELECT ' 
-      . $this->getSelectColumnListSql() 
-      . ' FROM '
-      . $this->_metadata->getTableName() . ' '
-      . $this->getTableAlias($this->_metadata->getClassName())
+    $query =  'SELECT ' . $this->getSelectColumnListSql() 
+      . ' FROM '. $this->_metadata->getTableName() . ' '. $this->getTableAlias($this->_metadata->getClassName())
       . $joinSql
       . $conditionSql
       . $orderSql;
+
+      echo $query;
+
+      die;
   }
 
   /**
@@ -254,9 +254,9 @@ class Persister
       
       $columns = array();
       $metadata = $this->_metadata;
-      $fieldNames = $metadata->getFieldMapping();
+      $mappings = $metadata->getFieldMappings();
 
-      foreach ($fieldNames as $columnName => $fieldName) {
+      foreach ($mappings as $columnName => $fieldName) {
         $columns[] = $this->getSelectColumnSql($fieldName, $metadata);
       }
       $assocColumns = $this->getSelectJoinColumnsSql($metadata);
@@ -277,7 +277,7 @@ class Persister
    * @param  Metadata\EntityMetadata $metadata  [description]
    * @return [type]                             [description]
    */
-  public function getSelectColumnSql($fieldName, Metadata\EntityMetadata $metadata)
+  protected function getSelectColumnSql($fieldName, Metadata\EntityMetadata $metadata)
   {
     $column = $metadata->getColumn($fieldName);
     $sql = $this->getTableAlias($metadata->getClassName()) . '.' . $column;
@@ -290,14 +290,14 @@ class Persister
   }
 
   /**
-   * getSelectJoinColumnSql
+   * getSelectJoinColumnsSql
    *
-   * Return the join column SQL statement
+   * Return the select statement's joinned column names
    * 
-   * @param  Metadata\EntityMetadata $metadata [description]
+   * @param  Metadata\EntityMetadata $metadata The entity metadata
    * @return string The JOIN column statement as a string
    */
-  public function getSelectJoinColumnSql(Metadata\EntityMetadata $metadata)
+  protected function getSelectJoinColumnsSql(Metadata\EntityMetadata $metadata)
   {
     $sql = '';
     $mappings = $metadata->getAssociationMappings();
