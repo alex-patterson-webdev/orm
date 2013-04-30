@@ -89,44 +89,52 @@ class EntityManager
   }
 
   /**
-   * getDatabaseAdapter()
+   * getDatabaseAdapter
    * 
-   * @return [type] [description]
+   * @return Database\Adapter
    */
   public function getDatabaseAdapter()
   {
-    if (! isset($this->_dbAdapter)) {
-      $this->_dbAdapter = new Database\Adapter();
-    }
-    return $this->_dbAdapter;
+
+
+    //return $this->_dbAdapter;
   }
 
+  /**
+   * setDatabaseAdapter
+   *
+   * Set the database adapter instance
+   * 
+   * @param Database\Adapter $dbAdapter The database adapter
+   */
   public function setDatabaseAdapter($dbAdapter)
   {
     $this->_dbAdapter = $dbAdapter;
   }
 
-
   /**
    * getMetadataDriver
+   *
+   * This needs to be implemented correctly
    * 
    * @return Orm\Metadata\Driver
    */
   protected function getMetadataDriver()
   {
-    $database = $this->getDatabaseAdapter();
     $options = array(
       'entity' => 'fw_entity',
       'fields' => 'fw_field',
       'assoc' => 'fw_association'
     );
-    return new Metadata\Driver\DatabaseDriver($database, $options);
+    return new Metadata\Driver\DatabaseDriver($this->getDatabaseAdapter(), $options);
   }
 
   /**
    * getMetadataFactory
    *
-   * @return Metadata
+   * Return the metadata factory instance.
+   * 
+   * @return Metadata\Factory $factory
    */
   protected function getMetadataFactory()
   {

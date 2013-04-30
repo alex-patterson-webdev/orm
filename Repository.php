@@ -55,12 +55,24 @@ class Repository
    */
   public function __construct(Metadata\EntityMetadata $metadata, EntityManager $em)
   {
-    $this->_entityName = $metadata->getEntityName();
-    $this->_metadata = $metadata->getClassName();
-    $this->_metadata = $metadata;
+    $this->_entityName    = $metadata->getEntityName();
+    $this->_className     = $metadata->getClassName();
+    $this->_metadata      = $metadata;
     $this->_entityManager = $em;
 
     return $this;
+  }
+
+  /**
+   * getEntityName
+   *
+   * Return the name of the entity
+   * 
+   * @return string The name of the entity
+   */
+  public function getEntityName()
+  {
+    return $this->_entityName;
   }
 
   /**
@@ -78,39 +90,38 @@ class Repository
   /**
    * findById
    *
-   * Find an entity by its identity
+   * Find an entity by its identity. We need to ensure that the
+   * identity map is checked here as well as within the EntityManager.
    * 
    * @param  array  $id The idenity to find
    * @return  IEntity|null
    */
   public function findById(array $id)
   {
-    /** Check the identity map first **/
-    $em = $this->_entityManager;
-    if ($em->isInIdentityMap($this->_entityName, $id)) {
-      $entity = $em->getFromIdentityMap($this->_entityName, $id);  
-      return ($entity instanceof $this->_className) ? $entity : null;
+    if ($this->_entityManager->isInIdentityMap($this->_entityName, $id)) {
+      return $this->_entityManager->getFromIdentityMap($this->_entityName, $id);
+    } else {
+      $fields = array();
+      foreach($this->_metadata->getIdentityFields() as $key => $fieldName) {
+        $fields[$fieldName] = $id[$key];
+      }
+      return $em->getEntityPersister($this->_entityName)->loadOne($criteria);
     }
-    /** Generate the identity criteria **/
-    $criteria = array();
-    $fields = $this->_metadata->getIdentityFields();
-    for ($x = 0; $x < count($fields); $x++) {
-      $criteria[$fields[$x]] = $id[$x];
-    }
-    return $em->getEntityPersister($this->_entityName)->loadOne($criteria);
   }
 
   /**
    * findOne
    *
-   * Find one entity instance withgiven criteria
+   * Find one entity instance with given criteria
    * 
-   * @param  array  $criteria [description]
-   * @return [type]           [description]
+   * @param  array  $criteria Array containing the field names to 
+   * desired field values criteria
+   * @return mixed(Orm\Entity|null) $entity 
    */
   public function findOne(array $criteria = array())
   {
     $persister = $this->_entityManager->getEntityPersister($this->_entityName);
+
     return $persiter->loadOne($criteria);
   }
 
@@ -124,38 +135,36 @@ class Repository
   public function findMany(array $criteria)
   {
     $persister = $this->_entityManager->getEntityPersister($this->_entityName);
+
     return $persiter->loadMany($criteria);
   }
-
 
   /**
    * __call
    *
-   * Magic PHP __call allows catching of 'FindByXXX' method calls
+   * Catches calls to non-existing methods.
    * 
-   * @param  string $method The name of the method that was called
-   * @param  array $args array of arguments passed to the method
-   * @return Orm\Entity\ICollection $collection
+   * @param  string $method    The name of the missing method
+   * @param  array  $arguments Array of arguments passed to the non-existing method
+   * @return 
    */
-  public function __call($method, $args)
+  public function __call ($method, $arguments)
   {
-    $method = strtolower($method);
     if (substr($method, 0, 9) == 'findmanyby') {
-      $by = substr($method, 10, strlen($method));
-      $act = 'findManyBy';
+      $methodName = 'findManyBy';
+      $fieldName  = substr($method, 10, strlen($method));
     } else if (substr($method, 8) == 'findoneby') {
-      $by = substr($method, 9, strlen($method));
-      $act = 'findOneBy';
+      $methodName = 'findOneBy';
+      $fieldName  = substr($method, 9, strlen($method));
     } else {
-      throw new \Exception('Unknown entity fetch method ' . $method .' for entity repository '. __CLASS__);
+      throw new \BadMethodCallException(
+        sprintf('Fatal error: Unable to call invalid method "%s" in class "%s"', $method, __CLASS__)
+      );
     }
-    $fieldName = strtolower($by);
-    if ($this->_metadata->hasField($fieldName) || $this->metadata->hasAssociation($fieldName)) {
-      $params = array($fieldName => $args[0]);
-
-      return $act($params);
+    if ($this->_metadata->hasField($fieldName) || $this->_metadata->hasAssociation($fieldName)) {
+      return call_user_func_array($this->$methodName, $arguments);
     }
-    throw \Exception('Unknown method ' . $method .' called for class ' . __CLASS__);
+    throw new \BadMethodCallException(sprintf('Fatal error: Unable to call invalid method "%s" in class "%s"', $method, __CLASS__));
   }
 
 }
