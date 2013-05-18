@@ -97,7 +97,7 @@ class EntityManager
   {
 
 
-    //return $this->_dbAdapter;
+    return $this->_dbAdapter;
   }
 
   /**
@@ -263,7 +263,7 @@ class EntityManager
    * 
    * @param Orm\Entity\Abstract $entity The identity to add
    */
-  public function addToIdentityMap(Orm\Entity\IEntity $entity, array $id)
+  public function addToIdentityMap(Entity\IEntity $entity, array $id)
   {
     $this->getIdentityMap()->addToIdentityMap($entity, $id);
   }
@@ -369,7 +369,7 @@ class EntityManager
    * @param  array  $data       [description]
    * @return [type]             [description]
    */
-  protected function createEntity($entityName, array $data = array())
+  public function createEntity($entityName, array $data = array())
   {
     $metadata = $this->getEntityMetadata($entityName);
     $fields = $metadata->getIdentityFields();

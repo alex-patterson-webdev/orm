@@ -279,7 +279,7 @@ use Orm\Metadata;
         $mappings[] = array(
           'type' => $mapping['relationship_type'],
           'fieldName' => $mapping['field_name'],
-          'identity' => $mapping['identity'],
+          'identity' => $mapping['is_identity'],
           'sourceEntityName' => $mapping['entity_name'],
           'targetEntityName' => $mapping['target_entity_name'],
           'mappedByColumn' => $mapping['mapped_by_column_name'],

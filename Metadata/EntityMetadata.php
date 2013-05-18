@@ -2,6 +2,7 @@
 
 namespace Orm\Metadata;
 
+use Orm;
 use Orm\Entity;
 
 /**
@@ -16,9 +17,13 @@ use Orm\Entity;
  */
 class EntityMetadata
 {
-  const ASSOC_ONE_TO_ONE = 'ONETOONE';
-  const ASSOC_ONE_TO_MANY = 'ONETOMANY';
-  const ASSOC_MANY_TO_MANY = 'MANYTOMANY';
+  const ASSOC_ONE_TO_ONE = 1;
+  const ASSOC_MANY_TO_ONE = 2;
+  const ASSOC_ONE_TO_MANY = 4;
+  const ASSOC_MANY_TO_MANY = 8;
+
+  const ASSOC_TO_ONE    = 3;
+  const ASSOC_TO_MANY  = 12;
 
   const DATA_TYPE_INT = 'integer';
   const DATA_TYPE_VAR = 'varchar';
@@ -191,7 +196,7 @@ class EntityMetadata
    */
   public function getClassName()
   {
-    return $this->className;
+    return $this->_className;
   }
 
   /**
@@ -399,7 +404,7 @@ class EntityMetadata
     }
 
     $this->_fields[$mapping['columnName']] = $mapping['fieldName'];
-    $this->_columns[$fieldName] = $mapping['columnName'];
+    $this->_columns[$mapping['fieldName']] = $mapping['columnName'];
 
     if (isset($mapping['identity']) && true == $mapping['identity']) {
       if (! in_array($mapping['fieldName'], $this->_identityFields)) {
@@ -464,6 +469,37 @@ class EntityMetadata
       return ($this->_associationMappings[$fieldName]['type'] !== self::ASSOC_ONE_TO_ONE) ? true : false;
     }
     return false;
+  }
+
+  /**
+   * isCollectionValuedAssociation
+   *
+   * Is the field name association a collecton
+   * 
+   * @param string $fieldName The field name holding the associaition
+   * @return boolean
+   */
+  public function isCollectionValuedAssociation($fieldName)
+  {
+    return (isset($this->_associationMappings[$fieldName]) 
+      && ! ($this->_associationMappings[$fieldName]['type'] & self::TO_ONE));
+  }
+
+  /**
+   * getAssociationTargetClass
+   *
+   * Return the class name of the target entity
+   * 
+   * @return string $fieldName The association field name
+   */
+  public function getAssociationTargetClass($fieldName)
+  {
+    if ($this->hasAssociation($fieldName)) {
+      return 'Entity\\' . $this->_associationMappings[$fieldName]['targetEntityName'];
+    }
+    throw new \InvalidArgumentException(
+      sprintf('Field %s is not a valid association field for entity %s', $fieldName, $this->_metadata->getEntityName())
+    );
   }
 
  /**
@@ -755,6 +791,11 @@ class EntityMetadata
    */
   public function getColumn($fieldName)
   {
+
+    // var_dump($fieldName);
+    // var_dump(isset($this->_columns[$fieldName]));
+    // die();
+    
     if (isset($this->_columns[$fieldName])) {
       return $this->_columns[$fieldName];
     }

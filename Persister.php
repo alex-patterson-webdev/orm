@@ -86,7 +86,10 @@ class Persister
     $result = $this->execute($sql, $data['params'], $data['types']);
 
     if (! empty($result)) {
-      return $this->populateEntity($this->createEntity(), $this->processQueryRow($result[0]));
+      return $this->_entityManager->createEntity(
+        $this->_entityName,
+        $this->processQueryRow($result[0])
+      );
     }
     return null;
   }
@@ -110,7 +113,10 @@ class Persister
     $results = array();
     if (! empty($result)) {
       foreach ($result as $row) {
-        $results[] = $this->populateEntity($this->createEntity(), $this->processQueryRow($row));
+        $results[] = $this->_entityManager->createEntity(
+          $this->createEntity(), 
+          $this->processQueryRow($row)
+        );
       }
     }
     return $results;
@@ -236,9 +242,8 @@ class Persister
       . $conditionSql
       . $orderSql;
 
-      echo $query;
-
-      die;
+    //echo $query; die;
+    return $query;
   }
 
   /**
@@ -254,7 +259,7 @@ class Persister
       
       $columns = array();
       $metadata = $this->_metadata;
-      $mappings = $metadata->getFieldMappings();
+      $mappings = $metadata->getFields();
 
       foreach ($mappings as $columnName => $fieldName) {
         $columns[] = $this->getSelectColumnSql($fieldName, $metadata);
@@ -283,7 +288,7 @@ class Persister
     $sql = $this->getTableAlias($metadata->getClassName()) . '.' . $column;
     $alias = $column . $this->_tableIndex++;
 
-    if (! isset($this->_columnNames, $alias)) {
+    if (! isset($this->_columnNames[$alias])) {
       $this->_columnNames[$alias] = $column;
     }
     return $sql . ' as ' . $alias; 
@@ -334,7 +339,7 @@ class Persister
 
       foreach ($criteria as $fieldName => $fieldValue) {
         
-        if (strlen($sql)) $sql .= ' AND ';
+        $sql .= (strlen($sql)) ? ' AND ' : ' WHERE ';
 
         if (isset($fields[$fieldName])) {
           $sql .= $this->getTableAlias($metadata->getClassName()) . '.' . $metadata->getColumn($fieldName);

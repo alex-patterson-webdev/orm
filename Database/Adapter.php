@@ -1,6 +1,6 @@
 <?php
 
-namespace Orm\Database\Adapter;
+namespace Orm\Database;
 
 abstract class Adapter extends \Zend_Db_Adapter
 {

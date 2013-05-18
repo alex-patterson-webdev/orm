@@ -105,7 +105,7 @@ class Repository
       foreach($this->_metadata->getIdentityFields() as $key => $fieldName) {
         $fields[$fieldName] = $id[$key];
       }
-      return $em->getEntityPersister($this->_entityName)->loadOne($criteria);
+      return $this->_entityManager->getEntityPersister($this->_entityName)->loadOne($fields);
     }
   }
 
