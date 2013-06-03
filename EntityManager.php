@@ -95,8 +95,6 @@ class EntityManager
    */
   public function getDatabaseAdapter()
   {
-
-
     return $this->_dbAdapter;
   }
 

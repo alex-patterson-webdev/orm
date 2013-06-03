@@ -8,10 +8,25 @@ use Orm\Database;
 
 class Persister
 {
+  /**
+   * $_metadata
+   *
+   * @var Orm\Metadata The entity metadata
+   */
   protected $_metadata = null;
 
+  /**
+   * $_entityManager
+   * 
+   * @var Orm\EntityManager The entity manager instance
+   */
   protected $_entityManager = null;
 
+  /**
+   * $_dbAdapter
+   * 
+   * @var Orm\Database The database adapter instance
+   */
   protected $_dbApdater = null;
 
   protected $_entityName = '';
@@ -39,11 +54,23 @@ class Persister
   public function __construct(Metadata\EntityMetadata $metadata, EntityManager $em)
   {
     $this->_entityManager = $em;
-    $this->_metadata        = $metadata;
-    $this->_dbApdater       = $em->getDatabaseAdapter();
-    $this->_entityName     = $metadata->getEntityName(); 
+    $this->_metadata = $metadata;
+    $this->_dbApdater = $em->getDatabaseAdapter();
+    $this->_entityName = $metadata->getEntityName(); 
 
     return $this;
+  }
+
+  /**
+   * getEntityName
+   *
+   * Return the name of the entity
+   * 
+   * @return string The name of the entity
+   */
+  public function getEntityName()
+  {
+    return $this->_entityName;
   }
 
   /**
@@ -168,15 +195,15 @@ class Persister
     return $stmt->fetchAll();
   }
 
-
   /**
    * processQueryResultSet
    *
-   * Reformats the query result set from alias column names
-   * to table column names
+   * Reformats the query result set. Removes the column name keys that have been
+   * aliased into the correct column names, for each row of the result set.
    * 
-   * @param  array  $results [description]
-   * @return array $formatted results array
+   * @param  array $resultset The database result set as an array
+   * @return array $data The formatted result set
+   * @see self::processQueryRow
    */
   protected function processQueryResultSet(array $resultset)
   {
@@ -192,8 +219,8 @@ class Persister
   /**
    * processQueryRow
    *
-   *  Format a single query result row. Keys are table column
-   *  names and values
+   * Format a single query result row. Keys are table column
+   * names and values
    * 
    * @param  array $result
    * @return array The formatted array result
